@@ -25,7 +25,7 @@ with col1:
     st.markdown("*Step 3: View how the target player is forecasted to perform at the target school*")
 
 with col2:
-    logo_path = "/Users/thomaslappas/Desktop/Desktop/Graduate School/NBA/2025/BasketballTransferIndexLogo.png"
+    logo_path = "BasketballTransferIndexLogo.png"
     if os.path.exists(logo_path):
         st.image(logo_path, use_column_width=True)
     else:
@@ -36,13 +36,13 @@ with col2:
 # --------------------------
 @st.cache_resource
 def get_gspread_client():
+    import json
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "/Users/thomaslappas/Desktop/Desktop/Graduate School/NBA/2025/creds.json", scope
-    )
+    creds_dict = json.loads(st.secrets["GSPREAD_CREDS"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
 # --------------------------
