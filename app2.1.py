@@ -1,0 +1,621 @@
+import streamlit as st
+import pandas as pd
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+import matplotlib.pyplot as plt
+import numpy as np
+import os
+import random
+
+# --------------------------
+# CONFIGURATION & STYLING
+# --------------------------
+st.set_page_config(page_title="Basketball Transfer Index", layout="wide")
+
+# --------------------------
+# HEADER LAYOUT
+# --------------------------
+col1, col2 = st.columns([3, 1])  # Adjust layout proportions
+
+with col1:
+    st.markdown("## Basketball Transfer Index")
+    st.markdown("*Step 1: Select the Target School*")
+    st.markdown("*Step 2: Select the Target Player*")
+    st.markdown("*Use the filters on the left hand side to filter based on Conferences, Statistical measures, and more*")
+    st.markdown("*Step 3: View how the target player is forecasted to perform at the target school*")
+
+with col2:
+    logo_path = "/Users/thomaslappas/Desktop/Desktop/Graduate School/NBA/2025/BasketballTransferIndexLogo.png"
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_column_width=True)
+    else:
+        st.warning("Logo not found.")
+
+# --------------------------
+# GSPREAD CLIENT (CACHED)
+# --------------------------
+@st.cache_resource
+def get_gspread_client():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "/Users/thomaslappas/Desktop/Desktop/Graduate School/NBA/2025/creds.json", scope
+    )
+    return gspread.authorize(creds)
+
+# --------------------------
+# LOAD & CACHE DATA
+# --------------------------
+@st.cache_data
+def load_player_data():
+    client = get_gspread_client()
+    sheet = client.open("Transfer Model 3.0").worksheet("Data")
+    data = sheet.get_all_values()
+
+    raw_columns = data[0]
+    seen = {}
+    columns = []
+    for col in raw_columns:
+        col_clean = col.strip()
+        if col_clean in seen:
+            seen[col_clean] += 1
+            columns.append(f"{col_clean}.{seen[col_clean]}")
+        else:
+            seen[col_clean] = 0
+            columns.append(col_clean)
+
+    df = pd.DataFrame(data[1:], columns=columns)
+    df.columns = df.columns.str.strip()
+    return df
+
+@st.cache_data
+def load_target_schools():
+    client = get_gspread_client()
+    sheet = client.open("Transfer Model 3.0").worksheet("Target School List")
+    schools = sheet.col_values(1)
+    return sorted(set(s for s in schools if s.strip() and s != "School"))
+
+# --------------------------
+# SAFE CONVERSIONS
+# --------------------------
+def safe_float(val):
+    try:
+        return float(str(val).replace('%',''))
+    except:
+        return 0.0
+
+# --------------------------
+# POSITIVE PROJECTION LOGIC
+# --------------------------
+def adjusted_positive_projection(current, multiplier):
+    projected = current * multiplier
+    while projected < 0:
+        multiplier = 1 + ((multiplier - 1) / 2)
+        projected = current * multiplier
+    return round(projected, 2)
+
+# --------------------------
+# COLUMN & LABEL MAPPINGS
+# --------------------------
+stat_column_map = {
+    "PPG": "PPG_Per40","2P%": "2P%_Per40","3P%": "3P%_Per40",
+    "FTA": "FTA_Per40","REB": "RPG_Per40", "AST": "APG_Per40",
+    "BLK": "BPG_Per40", "TOV": "TOV_Per40", "2FGM": "2PM_Per40",
+    "2FGA": "2PA_Per40", "3PM": "3PM_Per40", "3PA": "3PA_Per40",
+    "USG": "Est. Usage %", "GP": "GP","MPG": "MPG"
+}
+
+label_map = {
+    "PPG": "Pts", "2P%": "2P%", "3P%": "3P%", "FTA": "FTA",
+    "REB": "Reb", "AST": "Ast", "BLK": "Blk", "TOV": "TOV",
+    "2FGM": "2pt FGM", "2FGA": "2pt FGA", "3PM": "3PM", "3PA": "3PA",
+    "USG": "Est. Usage %", "GP": "Games Played", "MPG": "Minutes/Game"
+}
+
+projected_keys = [
+    ("PPG", "Points Per 40"), ("2P%", "2PT FG%"), ("3P%", "3PT FG %"),
+    ("FTA", "FTA per 40"), ("REB", "Reb per 40"), ("AST", "Ast per 40"),
+    ("BLK", "Blk per 40"), ("TOV", "TOV per 40"), ("2FGM", "2pt FGM/40"),
+    ("2FGA", "2pt FGA/40"), ("3PM", "3PM/40"), ("3PA", "3PA/40"),
+    ("USG", "Est. Usage %"), ("GP", "Games Played"), ("MPG", "Minutes/Game")
+]
+
+# --------------------------
+# LOAD DATA
+# --------------------------
+try:
+    df = load_player_data()
+    target_schools = load_target_schools()
+except Exception as e:
+    st.error(f"Failed to load data: {e}")
+    st.stop()
+
+# --------------------------
+# UI: TARGET SCHOOL SELECTION
+# --------------------------
+selected_school = st.selectbox("Select Target School:", target_schools)
+
+# --------------------------
+# UI: PLAYER FILTERS (SIDEBAR)
+# --------------------------
+
+# Clean column names just in case
+df.columns = df.columns.str.strip()
+
+def apply_filter(series, selected_values):
+    if selected_values:
+        return series.isin(selected_values)
+    else:
+        return pd.Series([True] * len(series), index=series.index)
+    
+# Helper function to keep index alignment
+def apply_filter(series, selected_values):
+    if selected_values:
+        return series.isin(selected_values)
+    else:
+        return pd.Series([True] * len(series), index=series.index)
+
+st.sidebar.subheader("Player Filters")
+
+# Step 1: Nationality filter
+nationality_filter = st.sidebar.multiselect("Nationality", sorted(df['Nationality'].dropna().unique()))
+df_nat = df[apply_filter(df['Nationality'], nationality_filter)]
+
+# Step 2: Division options filtered by Nationality
+division_options = sorted(df_nat['Division'].dropna().unique())
+d1d2_filter = st.sidebar.multiselect("Division", division_options)
+df_div = df_nat[apply_filter(df_nat['Division'], d1d2_filter)]
+
+# Step 3: Conference options filtered by Division
+conference_options = sorted(df_div['Conference'].dropna().unique())
+conference_filter = st.sidebar.multiselect("Conference", conference_options)
+df_conf = df_div[apply_filter(df_div['Conference'], conference_filter)]
+
+# Step 4: School options filtered by Conference
+school_options = sorted(df_conf['School'].dropna().unique())
+school_filter = st.sidebar.multiselect("School", school_options)
+df_school = df_conf[apply_filter(df_conf['School'], school_filter)]
+
+# Step 5: Position options filtered by School
+position_options = sorted(df_school['Pos'].dropna().unique())
+position_filter = st.sidebar.multiselect("Position", position_options)
+
+# Step 6: Points Per 40 filter
+ppg_column = "PPG_Per40"
+df_school[ppg_column] = pd.to_numeric(df_school[ppg_column], errors='coerce')
+min_ppg = float(df_school[ppg_column].min(skipna=True))
+max_ppg = float(df_school[ppg_column].max(skipna=True))
+ppg_threshold = st.sidebar.slider("Points Per40 (Minimum)", min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
+
+# Step 7: 3PA Per 40 filter
+threepa_column = "3PA_Per40"
+df_school[threepa_column] = pd.to_numeric(df_school[threepa_column], errors='coerce')
+min_3pa = float(df_school[threepa_column].min(skipna=True))
+max_3pa = float(df_school[threepa_column].max(skipna=True))
+threepa_threshold = st.sidebar.slider("3PA Per40 (Minimum)", min_value=0.0, max_value=max_3pa, value=min_3pa, step=0.5)
+
+# Step 8: Rebounds Per 40 filter
+reb_column = "RPG_Per40"
+df_school[reb_column] = pd.to_numeric(df_school[reb_column], errors='coerce')
+min_reb = float(df_school[reb_column].min(skipna=True))
+max_reb = float(df_school[reb_column].max(skipna=True))
+reb_threshold = st.sidebar.slider("Rebounds Per40 (Minimum)", min_value=0.0, max_value=max_reb, value=min_reb, step=0.5)
+
+# Step 9: 3P% Per 40 filter
+threep_column = "3P%_Per40"  # adjust if different
+df_school[threep_column] = pd.to_numeric(df_school[threep_column], errors='coerce')
+
+min_3p = float(df_school[threep_column].min(skipna=True)) * 100  # convert to %
+max_3p = float(df_school[threep_column].max(skipna=True)) * 100
+threep_threshold = st.sidebar.slider(
+    "Min 3P% Per 40", min_value=0.0, max_value=max_3p, value=min_3p, step=1.0
+)
+
+# Final filtered DataFrame
+filtered_df = df_school[
+    (apply_filter(df_school['Nationality'], nationality_filter)) &
+    (apply_filter(df_school['Division'], d1d2_filter)) &
+    (apply_filter(df_school['Conference'], conference_filter)) &
+    (apply_filter(df_school['School'], school_filter)) &
+    (apply_filter(df_school['Pos'], position_filter)) &
+    (df_school[ppg_column] >= ppg_threshold) &
+    (df_school[threepa_column] >= threepa_threshold) &
+    (df_school[reb_column] >= reb_threshold) &
+    (df_school[threep_column] * 100 >= threep_threshold)
+]
+
+# --------------------------
+# PLAYER SELECTION
+# --------------------------
+
+# Safely identify the correct 'Player' column
+player_columns = [col for col in filtered_df.columns if col.strip().lower() == "player"]
+
+if not player_columns:
+    st.error("No 'Player' column found in the data.")
+    st.stop()
+
+if len(player_columns) > 1:
+    st.warning(f"Multiple 'Player' columns found: {player_columns}. Using the first one.")
+
+player_column = player_columns[0]
+
+# Get unique player names
+player_names = sorted(filtered_df[player_column].dropna().unique())
+
+# Select player
+if player_names:
+    selected_player = st.selectbox("Select Target Player:", player_names, key="player_selectbox")
+    player = filtered_df[filtered_df[player_column] == selected_player].iloc[0]
+else:
+    st.warning("No players match your selected filters. Please adjust your selections.")
+    st.stop()
+
+# --------------------------
+# Minute box
+# --------------------------
+# Minutes input (default = 40)
+#minutes = st.number_input("Adjust projection Minutes per game:", min_value=1, max_value=40, value=40, step=1)
+scale_factor = 1
+#minutes / 40
+minutes = 40
+
+# --------------------------
+# WRITE TO ACTIVE SHEET
+# --------------------------
+try:
+    client = get_gspread_client()
+    active_sheet = client.open("Transfer Model 3.0").worksheet("Active")
+
+    # Update values
+    active_sheet.update_acell('A2', player.get('Pos', ''))
+    active_sheet.update_acell('A5', selected_player)
+    active_sheet.update_acell('B5', selected_school)
+    active_sheet.update_acell('A3', player.get('School', ''))
+except Exception as e:
+    st.warning(f"Failed to update 'Active' sheet: {e}")
+    st.stop()
+
+try:
+    # Read values
+    target_team_rank = active_sheet.acell('B7').value
+    target_team_style = active_sheet.acell('B8').value
+
+    # Fetch Stat Cap separately
+    stat_cap_data = active_sheet.get('B13:I13')[0]
+
+    # Fetch projection data with correct header row
+    projection_data = active_sheet.get('A14:I18')
+    projection_df = pd.DataFrame(projection_data[1:], columns=projection_data[0])
+
+    if 'Summary' not in projection_df.columns:
+        raise ValueError("Missing 'Summary' column in projection data")
+
+    total_row = projection_df[projection_df['Summary'] == 'Initial Total'].iloc[0]
+    stat_cap_cols = projection_df.columns[1:]  # Exclude 'Summary'
+    cap_row = dict(zip(stat_cap_cols, stat_cap_data))
+except Exception as e:
+    st.warning(f"Failed to read from 'Active' sheet: {e}")
+    target_team_rank = target_team_style = "N/A"
+    projection_df = pd.DataFrame()
+    total_row = {}
+    cap_row = {}
+
+# --------------------------
+# PROJECTED SEASON PERFORMANCE
+# --------------------------
+st.markdown("### Forecasted Per40 Statistics at Target School")
+
+projected_stat_layout = [
+    ["PPG", "FTA", "REB", "AST"],
+    ["BLK", "TOV", "2P%", "3P%"]
+]
+
+volume_stat_cap_multiplier = 1.40
+percent_stat_cap_multiplier = 1.10
+
+# Get conference of selected target school
+target_conf = df[df["School"] == selected_school]["Conference"].values
+target_conf = target_conf[0] if len(target_conf) > 0 else None
+
+# Define contextual labels by stat and percentile
+def context_from_percentile(stat, p):
+    if stat == "TOV":
+        return "High" if p < 33 else "Average" if p < 67 else "Low"
+    else:
+        return "Below Average" if p < 33 else "Average" if p < 67 else "Above Average"
+
+# Stats where lower is better
+lower_is_better = {"TOV"}
+
+for stat_row in projected_stat_layout:
+    row_cols = st.columns(4)
+    for i, stat in enumerate(stat_row):
+        adj_col = dict(projected_keys).get(stat, "")
+        col = stat_column_map.get(stat, stat)
+
+        current_val = safe_float(player.get(col, 0))
+        raw_multiplier = total_row.get(adj_col, 1)
+        multiplier = safe_float(raw_multiplier)
+
+        raw_cap = cap_row.get(adj_col)
+        stat_cap = safe_float(raw_cap if raw_cap not in [None, ""] else float('inf'))
+
+        if stat in ["2P%", "3P%"]:
+            max_allowed_val = percent_stat_cap_multiplier * stat_cap
+            projected_val = adjusted_positive_projection(current_val, multiplier)
+            projected_val_capped = min(projected_val, max_allowed_val)
+
+            if target_conf:
+                conf_vals = df[df["Conference"] == target_conf][col].astype(float)
+                percentile = round((conf_vals < projected_val_capped).mean() * 100)
+                context = context_from_percentile(stat, percentile)
+                caption = f"{context} for {target_conf} ({percentile} percentile)"
+            else:
+                caption = ""
+
+            with row_cols[i]:
+                st.metric(
+                    f"{label_map[stat]} (Per40)",
+                    f"{projected_val_capped * 100:.0f}%",
+                )
+                st.caption(caption)
+
+        else:
+            max_allowed_val = volume_stat_cap_multiplier * stat_cap
+            projected_val = adjusted_positive_projection(current_val, multiplier) * scale_factor
+            projected_val_capped = min(projected_val, max_allowed_val)
+
+            if target_conf:
+                conf_vals = df[df["Conference"] == target_conf][col].astype(float)
+                if stat in lower_is_better:
+                    percentile = round((conf_vals > projected_val_capped).mean() * 100)
+                else:
+                    percentile = round((conf_vals < projected_val_capped).mean() * 100)
+
+                context = context_from_percentile(stat, percentile)
+                caption = f"{context} for {target_conf} ({percentile} percentile)"
+            else:
+                caption = ""
+
+            with row_cols[i]:
+                st.metric(
+                    f"{label_map[stat]} (Per40)",
+                    f"{projected_val_capped:.1f}",
+                )
+                st.caption(caption) 
+
+# --------------------------
+# CURRENT SEASON PERFORMANCE
+# --------------------------
+st.markdown("### Current Per40 Statistics")
+
+current_stat_layout = [
+    ["PPG", "FTA", "REB", "AST"],
+    ["BLK", "TOV", "2P%", "3P%"]
+]
+
+player_conf = player.get("Conference", None)
+
+# Define how to interpret percentiles
+def context_from_percentile(stat, p):
+    if stat == "TOV":
+        return "High" if p < 33 else "Average" if p < 67 else "Low"
+    else:
+        return "Below Average" if p < 33 else "Average" if p < 67 else "Above Average"
+
+# Stats where lower values are better
+lower_is_better = {"TOV"}
+
+for stat_row in current_stat_layout:
+    row_cols = st.columns(4)
+    for i, stat in enumerate(stat_row):
+        col_name = stat_column_map.get(stat, stat)
+        current_val = safe_float(player.get(col_name, "N/A"))
+
+        if player_conf:
+            conf_vals = df[df["Conference"] == player_conf][col_name].astype(float)
+            if stat in lower_is_better:
+                percentile = round((conf_vals > current_val).mean() * 100)
+            else:
+                percentile = round((conf_vals < current_val).mean() * 100)
+            context = context_from_percentile(stat, percentile)
+            caption = f"{context} for {player_conf} ({percentile} percentile)"
+        else:
+            caption = ""
+
+        with row_cols[i]:
+            if stat in ["2P%", "3P%"]:
+                st.metric(f"{label_map[stat]} (Per40)", f"{current_val * 100:.0f}%")
+            else:
+                adjusted_val = current_val * scale_factor
+                st.metric(f"{label_map[stat]} (Per40)", f"{adjusted_val:.1f}")
+            st.caption(caption)
+
+# --------------------------
+# Player Profile 
+# --------------------------
+st.markdown("### Current Per40 Player Profile")
+
+# Base stats
+gp = safe_float(player.get("GP", 0))
+mpg = safe_float(player.get("MPG", 0))
+two_fga = safe_float(player.get("2PA_Per40", 0))
+three_pa = safe_float(player.get("3PA_Per40", 0))
+fta = safe_float(player.get("FTA_Per40", 0))
+ast = safe_float(player.get("APG_Per40", 0))
+tov = safe_float(player.get("TOV_Per40", 0))
+
+# Conference filter
+player_conf = player.get("Conference", None)
+df_conf = df[df["Conference"] == player_conf] if player_conf else df
+
+# Calculated stats
+total_fga = two_fga + three_pa
+two_pt_share = (two_fga / total_fga) * 100 if total_fga > 0 else 0
+three_pt_share = (three_pa / total_fga) * 100 if total_fga > 0 else 0
+fta_fga_ratio = fta / total_fga if total_fga > 0 else 0
+fta_fga_pct = fta_fga_ratio * 100
+ast_tov_ratio = (ast / tov) if tov > 0 else 0
+ast_fga_ratio = (ast / total_fga) if total_fga > 0 else 0
+
+# Percentiles vs players in same conference
+fta_values = df_conf["FTA_Per40"].astype(float) / (
+    df_conf["2PA_Per40"].astype(float) + df_conf["3PA_Per40"].astype(float)).replace(0, np.nan)
+fta_percentile = round((fta_values.dropna() < fta_fga_ratio).mean() * 100)
+
+ast_tov_values = df_conf["APG_Per40"].astype(float) / df_conf["TOV_Per40"].astype(float).replace(0, np.nan)
+ast_tov_percentile = round((ast_tov_values.dropna() < ast_tov_ratio).mean() * 100)
+
+ast_fga_values = df_conf["APG_Per40"].astype(float) / (
+    df_conf["2PA_Per40"].astype(float) + df_conf["3PA_Per40"].astype(float)).replace(0, np.nan)
+ast_fga_percentile = round((ast_fga_values.dropna() < ast_fga_ratio).mean() * 100)
+
+fga_values = df_conf["2PA_Per40"].astype(float) + df_conf["3PA_Per40"].astype(float)
+fga_percentile = round((fga_values < total_fga).mean() * 100)
+
+two_pt_percentile = round((df_conf["2PA_Per40"].astype(float) < two_fga).mean() * 100)
+three_pt_percentile = round((df_conf["3PA_Per40"].astype(float) < three_pa).mean() * 100)
+
+# Contextual labels
+def context_from_percentile(p):
+    return "Below Average" if p < 33 else "Average" if p < 67 else "Above Average"
+
+def fga_volume_label(percentile):
+    return "Low Volume" if percentile < 20 else "Balanced" if percentile < 67 else "High Volume"
+
+def style_label(percentile):
+    return "Shoot First" if percentile < 33 else "Balanced" if percentile < 67 else "Pass First"
+
+# Assign context labels
+fga_label = fga_volume_label(fga_percentile)
+fta_context = context_from_percentile(fta_percentile)
+ast_tov_context = context_from_percentile(ast_tov_percentile)
+ast_fga_context = style_label(ast_fga_percentile)
+three_pt_context = fga_volume_label(three_pt_percentile)
+
+# Layout
+row1 = st.columns(4)
+row2 = st.columns(4)
+
+# Row 1
+row1[0].metric("GP (Season Total)", f"{int(round(gp))}")
+row1[1].metric("Shot Mix: 2PTA | 3PTA", f"{two_pt_share:.0f}% / {three_pt_share:.0f}%")
+row1[1].caption(f"(2PT Percentile: {two_pt_percentile} | 3PT Percentile: {three_pt_percentile})")
+row1[2].metric("FGA (Per40)", f"{total_fga:.1f}")
+row1[2].caption(f"{fga_label} shooter in {player_conf} (Percentile: {fga_percentile})")
+row1[3].metric("3PTA (Per40)", f"{three_pa:.1f}")
+row1[3].caption(f"{three_pt_context} 3PT shooter in {player_conf} (Percentile: {three_pt_percentile})")
+
+# Row 2
+row2[0].metric("MPG (Season Avg)", f"{int(round(mpg))}")
+row2[1].metric("FTA / FGA (%)", f"{fta_fga_pct:.0f}%")
+row2[1].caption(f"{fta_context} at drawing fouls in {player_conf} (Percentile: {fta_percentile})")
+row2[2].metric("AST / TOV", f"{ast_tov_ratio:.1f}")
+row2[2].caption(f"{ast_tov_context} decision-maker in {player_conf} (Percentile: {ast_tov_percentile})")
+row2[3].metric("AST / FGA (%)", f"{ast_fga_ratio * 100:.0f}%")
+row2[3].caption(f"{ast_fga_context} archetype in {player_conf} (Percentile: {ast_fga_percentile})")
+
+# --------------------------
+# Player Detail
+# --------------------------
+st.markdown("### Player Detail")
+
+# --------------------------
+# Google Search Link
+# --------------------------
+search_name = selected_player.replace(" ", "+")
+search_url = f"https://www.google.com/search?q={search_name}+basketball+stats"
+
+# Define layout: 4 columns
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.markdown(f"**Current School:** {player.get('School', 'N/A')}")
+    st.markdown(f"**Position:** {player.get('Pos', 'N/A')}")
+    st.markdown(f"**Division:** {player.get('Division', 'N/A')}")
+    st.markdown(f"**Class Year:** {player.get('Class', 'N/A')}")
+    st.markdown(f"[{selected_player} Stat Search]({search_url})", unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"**Target School:** {selected_school}")
+    transfer_flag = player.get('Previous Transfer', '0')
+    transfer_status = 'Yes' if str(transfer_flag).strip() != '0' else 'No'
+    st.markdown(f"**Previous Transfer:** {transfer_status}")
+
+with col3:
+    st.markdown(f"**Height:** {player.get('HT', 'N/A')}")
+    st.markdown(f"**Weight:** {player.get('WT', 'N/A')} lbs")
+
+with col4:
+    st.markdown(f"**Nationality:** {player.get('Nationality', 'N/A')}")
+    st.markdown(f"**Birth City:** {player.get('Birth City', 'N/A')}")
+    st.markdown(f"**HS / Prep School:** {player.get('High School/Prep School', 'N/A')}")
+    st.markdown(f"**Birth Date:** {player.get('Birth Date', 'N/A')}")
+
+# --------------------------
+# BAR CHART COMPARISON
+# --------------------------
+st.markdown("### Per40 Stats: Current vs Forecasted")
+
+# Define volume stats to compare
+volume_stats = ["PPG", "FTA", "REB", "AST", "BLK", "TOV"]
+
+# Safely extract current values
+current_vals = [safe_float(player.get(stat_column_map.get(stat, ""), 0)) for stat in volume_stats]
+
+# Get multipliers and project values
+adjustments = [safe_float(total_row.get(dict(projected_keys).get(stat, ""), 1)) for stat in volume_stats]
+projected_vals = [adjusted_positive_projection(cur, mult) for cur, mult in zip(current_vals, adjustments)]
+
+# Labels
+labels = [label_map.get(stat, stat) for stat in volume_stats]
+x = np.arange(len(labels))
+bar_width = 0.35
+
+# Plot
+fig, ax = plt.subplots(figsize=(10, 5))
+
+bars_current = ax.bar(x - bar_width/2, current_vals, bar_width,
+                      label='Current', color='steelblue', edgecolor='black')
+bars_projected = ax.bar(x + bar_width/2, projected_vals, bar_width,
+                        label='Forecasted', color='darkorange', edgecolor='black')
+
+# Axes and Title
+ax.set_xticks(x)
+ax.set_xticklabels(labels, fontsize=10)
+ax.set_ylabel("Per 40 Minutes", fontsize=11)
+ax.set_title(f"{selected_player} – Current vs Forecasted Stats", fontsize=13, fontweight='bold')
+ax.legend()
+ax.grid(axis='y', linestyle='--', alpha=0.6)
+
+# Y-axis scale with buffer
+y_max = max(max(current_vals), max(projected_vals)) * 1.15 if current_vals and projected_vals else 1
+ax.set_ylim(0, y_max)
+
+# Annotate bars
+for bar in bars_current + bars_projected:
+    height = bar.get_height()
+    if height > 0:
+        ax.annotate(f'{height:.1f}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 2),
+                    textcoords="offset points",
+                    ha='center', va='bottom', fontsize=8)
+
+fig.tight_layout()
+st.pyplot(fig)
+
+# --------------------------
+# FOOTER DISCLAIMER
+# --------------------------
+st.markdown("---")
+st.markdown(
+    "*Notes:*  \n"
+    "Players listed in the dropdown may or may not have eligibility for the upcoming season.  \n"
+    "The stats forecasted may or may not reflect actual results.  \n\n"
+    "**Disclaimer:**  \n"
+    "**THE USE OR RELIANCE OF ANY INFORMATION CONTAINED ON THIS SITE IS SOLELY AT YOUR OWN RISK.**"
+)
