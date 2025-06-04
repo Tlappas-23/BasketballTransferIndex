@@ -27,7 +27,7 @@ with col1:
 with col2:
     logo_path = "BasketballTransferIndexLogo.png"
     if os.path.exists(logo_path):
-        st.image(logo_path, use_column_width=True)
+        st.image(logo_path, use_container_width=True)
     else:
         st.warning("Logo not found.")
 
