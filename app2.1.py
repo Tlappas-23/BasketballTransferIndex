@@ -19,10 +19,10 @@ col1, col2 = st.columns([3, 1])  # Adjust layout proportions
 
 with col1:
     st.markdown("## Basketball Transfer Index")
-    st.markdown("*Step 1: Select the Target School*")
-    st.markdown("*Step 2: Select the Target Player*")
-    st.markdown("*Use the filters on the left hand side to filter based on Conferences, Statistical measures, and more*")
-    st.markdown("*Step 3: View how the target player is forecasted to perform at the target school*")
+    st.markdown("### Step 1: Select the Target School")
+    st.markdown("### Step 2: Select the Target Player")
+    st.markdown("_Use filters on the left-hand side to refine by Conference, Stats, and more._")
+    st.markdown("### Step 3: Review projected player performance at the selected school")
 
 with col2:
     logo_path = "BasketballTransferIndexLogo.png"
@@ -135,7 +135,8 @@ except Exception as e:
 # --------------------------
 # UI: TARGET SCHOOL SELECTION
 # --------------------------
-selected_school = st.selectbox("Select Target School:", target_schools)
+st.markdown("### Select Target School:")
+selected_school = st.selectbox("", target_schools)
 
 # --------------------------
 # UI: PLAYER FILTERS (SIDEBAR)
@@ -245,9 +246,10 @@ player_column = player_columns[0]
 # Get unique player names
 player_names = sorted(filtered_df[player_column].dropna().unique())
 
-# Select player
+# Select Player Section
 if player_names:
-    selected_player = st.selectbox("Select Target Player:", player_names, key="player_selectbox")
+    st.markdown("### Select Target Player:")
+    selected_player = st.selectbox("", player_names, key="player_selectbox")
     player = filtered_df[filtered_df[player_column] == selected_player].iloc[0]
 else:
     st.warning("No players match your selected filters. Please adjust your selections.")
