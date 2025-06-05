@@ -19,10 +19,10 @@ col1, col2 = st.columns([3, 1])  # Adjust layout proportions
 
 with col1:
     st.markdown("## Basketball Transfer Index")
-    st.markdown("### Step 1: Select the Target School")
-    st.markdown("### Step 2: Select the Target Player")
+    st.markdown("Step 1: Select the Target School")
+    st.markdown("Step 2: Select the Target Player")
     st.markdown("_Use filters on the left-hand side to refine by Conference, Stats, and more._")
-    st.markdown("### Step 3: Review projected player performance at the selected school")
+    st.markdown("Step 3: Review projected player performance at the selected school")
 
 with col2:
     logo_path = "BasketballTransferIndexLogo.png"
