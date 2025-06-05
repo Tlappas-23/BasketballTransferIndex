@@ -207,11 +207,19 @@ reb_threshold = st.sidebar.slider("Rebounds Per40 (Minimum)", min_value=0.0, max
 # Step 9: 3P% Per 40 filter
 threep_column = "3P%_Per40"  # adjust if different
 df_school[threep_column] = pd.to_numeric(df_school[threep_column], errors='coerce')
-
 min_3p = float(df_school[threep_column].min(skipna=True)) * 100  # convert to %
 max_3p = float(df_school[threep_column].max(skipna=True)) * 100
 threep_threshold = st.sidebar.slider(
     "Min 3P% Per 40", min_value=0.0, max_value=max_3p, value=min_3p, step=1.0
+)
+
+# Step 10: Minutes per Game filter
+mpg_column = "MPG"  # adjust if column name differs
+df_school[mpg_column] = pd.to_numeric(df_school[mpg_column], errors='coerce')
+min_mpg = float(df_school[mpg_column].min(skipna=True))
+max_mpg = float(df_school[mpg_column].max(skipna=True))
+mpg_threshold = st.sidebar.slider(
+    "Minimum MPG", min_value=0.0, max_value=max_mpg, value=min_mpg, step=1.0
 )
 
 # Final filtered DataFrame
@@ -224,7 +232,8 @@ filtered_df = df_school[
     (df_school[ppg_column] >= ppg_threshold) &
     (df_school[threepa_column] >= threepa_threshold) &
     (df_school[reb_column] >= reb_threshold) &
-    (df_school[threep_column] * 100 >= threep_threshold)
+    (df_school[threep_column] * 100 >= threep_threshold) &
+    (df_school[mpg_column] >= mpg_threshold)
 ]
 
 # --------------------------
