@@ -315,20 +315,16 @@ projected_stat_layout = [
 
 volume_stat_cap_multiplier = 1.40
 percent_stat_cap_multiplier = 1.10
+lower_is_better = {"TOV"}
 
-# Get conference of selected target school
 target_conf = df[df["School"] == selected_school]["Conference"].values
 target_conf = target_conf[0] if len(target_conf) > 0 else None
 
-# Define contextual labels by stat and percentile
 def context_from_percentile(stat, p):
     if stat == "TOV":
         return "High" if p < 33 else "Average" if p < 67 else "Low"
     else:
         return "Below Average" if p < 33 else "Average" if p < 67 else "Above Average"
-
-# Stats where lower is better
-lower_is_better = {"TOV"}
 
 for stat_row in projected_stat_layout:
     row_cols = st.columns(4)
@@ -357,11 +353,11 @@ for stat_row in projected_stat_layout:
                 caption = ""
 
             with row_cols[i]:
-                st.metric(
-                    f"{label_map[stat]} (Per40)",
-                    f"{projected_val_capped * 100:.0f}%",
-                )
-                st.caption(caption)
+                st.markdown(f"""
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:28px; margin-top:4px;">{projected_val_capped * 100:.0f}%</div>
+                    <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
+                """, unsafe_allow_html=True)
 
         else:
             max_allowed_val = volume_stat_cap_multiplier * stat_cap
@@ -374,18 +370,17 @@ for stat_row in projected_stat_layout:
                     percentile = round((conf_vals > projected_val_capped).mean() * 100)
                 else:
                     percentile = round((conf_vals < projected_val_capped).mean() * 100)
-
                 context = context_from_percentile(stat, percentile)
                 caption = f"{context} for {target_conf} ({percentile} percentile)"
             else:
                 caption = ""
 
             with row_cols[i]:
-                st.metric(
-                    f"{label_map[stat]} (Per40)",
-                    f"{projected_val_capped:.1f}",
-                )
-                st.caption(caption) 
+                st.markdown(f"""
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:28px; margin-top:4px;">{projected_val_capped:.1f}</div>
+                    <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
+                """, unsafe_allow_html=True)
 
 # --------------------------
 # CURRENT SEASON PERFORMANCE
@@ -399,14 +394,12 @@ current_stat_layout = [
 
 player_conf = player.get("Conference", None)
 
-# Define how to interpret percentiles
 def context_from_percentile(stat, p):
     if stat == "TOV":
         return "High" if p < 33 else "Average" if p < 67 else "Low"
     else:
         return "Below Average" if p < 33 else "Average" if p < 67 else "Above Average"
 
-# Stats where lower values are better
 lower_is_better = {"TOV"}
 
 for stat_row in current_stat_layout:
@@ -428,11 +421,18 @@ for stat_row in current_stat_layout:
 
         with row_cols[i]:
             if stat in ["2P%", "3P%"]:
-                st.metric(f"{label_map[stat]} (Per40)", f"{current_val * 100:.0f}%")
+                st.markdown(f"""
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:28px; margin-top:4px;">{current_val * 100:.0f}%</div>
+                    <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
+                """, unsafe_allow_html=True)
             else:
                 adjusted_val = current_val * scale_factor
-                st.metric(f"{label_map[stat]} (Per40)", f"{adjusted_val:.1f}")
-            st.caption(caption)
+                st.markdown(f"""
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:28px; margin-top:4px;">{adjusted_val:.1f}</div>
+                    <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
+                """, unsafe_allow_html=True)
 
 # --------------------------
 # Player Profile 
@@ -461,7 +461,7 @@ fta_fga_pct = fta_fga_ratio * 100
 ast_tov_ratio = (ast / tov) if tov > 0 else 0
 ast_fga_ratio = (ast / total_fga) if total_fga > 0 else 0
 
-# Percentiles vs players in same conference
+# Percentiles
 fta_values = df_conf["FTA_Per40"].astype(float) / (
     df_conf["2PA_Per40"].astype(float) + df_conf["3PA_Per40"].astype(float)).replace(0, np.nan)
 fta_percentile = round((fta_values.dropna() < fta_fga_ratio).mean() * 100)
@@ -501,22 +501,60 @@ row1 = st.columns(4)
 row2 = st.columns(4)
 
 # Row 1
-row1[0].metric("GP (Season Total)", f"{int(round(gp))}")
-row1[1].metric("Shot Mix: 2PTA | 3PTA", f"{two_pt_share:.0f}% / {three_pt_share:.0f}%")
-row1[1].caption(f"(2PT Percentile: {two_pt_percentile} | 3PT Percentile: {three_pt_percentile})")
-row1[2].metric("FGA (Per40)", f"{total_fga:.1f}")
-row1[2].caption(f"{fga_label} shooter in {player_conf} (Percentile: {fga_percentile})")
-row1[3].metric("3PTA (Per40)", f"{three_pa:.1f}")
-row1[3].caption(f"{three_pt_context} 3PT shooter in {player_conf} (Percentile: {three_pt_percentile})")
+with row1[0]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">GP (Season Total)</div>
+        <div style="font-size:28px; margin-top:4px;">{int(round(gp))}</div>
+    """, unsafe_allow_html=True)
+
+with row1[1]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">Shot Mix: 2PTA | 3PTA</div>
+        <div style="font-size:28px; margin-top:4px;">{two_pt_share:.0f}% / {three_pt_share:.0f}%</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">2PT: {two_pt_percentile} | 3PT: {three_pt_percentile}</div>
+    """, unsafe_allow_html=True)
+
+with row1[2]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">FGA (Per40)</div>
+        <div style="font-size:28px; margin-top:4px;">{total_fga:.1f}</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{fga_label} shooter in {player_conf} (Pctl: {fga_percentile})</div>
+    """, unsafe_allow_html=True)
+
+with row1[3]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">3PTA (Per40)</div>
+        <div style="font-size:28px; margin-top:4px;">{three_pa:.1f}</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{three_pt_context} 3PT shooter in {player_conf} (Pctl: {three_pt_percentile})</div>
+    """, unsafe_allow_html=True)
 
 # Row 2
-row2[0].metric("MPG (Season Avg)", f"{int(round(mpg))}")
-row2[1].metric("FTA / FGA (%)", f"{fta_fga_pct:.0f}%")
-row2[1].caption(f"{fta_context} at drawing fouls in {player_conf} (Percentile: {fta_percentile})")
-row2[2].metric("AST / TOV", f"{ast_tov_ratio:.1f}")
-row2[2].caption(f"{ast_tov_context} decision-maker in {player_conf} (Percentile: {ast_tov_percentile})")
-row2[3].metric("AST / FGA (%)", f"{ast_fga_ratio * 100:.0f}%")
-row2[3].caption(f"{ast_fga_context} archetype in {player_conf} (Percentile: {ast_fga_percentile})")
+with row2[0]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">MPG (Season Avg)</div>
+        <div style="font-size:28px; margin-top:4px;">{int(round(mpg))}</div>
+    """, unsafe_allow_html=True)
+
+with row2[1]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">FTA / FGA (%)</div>
+        <div style="font-size:28px; margin-top:4px;">{fta_fga_pct:.0f}%</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{fta_context} at drawing fouls ({fta_percentile} pct)</div>
+    """, unsafe_allow_html=True)
+
+with row2[2]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">AST / TOV</div>
+        <div style="font-size:28px; margin-top:4px;">{ast_tov_ratio:.1f}</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_tov_context} decision-maker ({ast_tov_percentile} pct)</div>
+    """, unsafe_allow_html=True)
+
+with row2[3]:
+    st.markdown(f"""
+        <div style="font-size:20px; font-weight:bold;">AST / FGA (%)</div>
+        <div style="font-size:28px; margin-top:4px;">{ast_fga_ratio * 100:.0f}%</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_fga_context} archetype ({ast_fga_percentile} pct)</div>
+    """, unsafe_allow_html=True)
 
 # --------------------------
 # Player Detail
