@@ -539,21 +539,21 @@ with row2[1]:
     st.markdown(f"""
         <div style="font-size:20px; font-weight:bold;">FTA / FGA (%)</div>
         <div style="font-size:28px; margin-top:4px;">{fta_fga_pct:.0f}%</div>
-        <div style="font-size:14px; color:gray; margin-top:2px;">{fta_context} at drawing fouls ({fta_percentile} pct)</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{fta_context} at drawing fouls ({fta_percentile} Pctl)</div>
     """, unsafe_allow_html=True)
 
 with row2[2]:
     st.markdown(f"""
         <div style="font-size:20px; font-weight:bold;">AST / TOV</div>
         <div style="font-size:28px; margin-top:4px;">{ast_tov_ratio:.1f}</div>
-        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_tov_context} decision-maker ({ast_tov_percentile} pct)</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_tov_context} decision-maker ({ast_tov_percentile} Pctl)</div>
     """, unsafe_allow_html=True)
 
 with row2[3]:
     st.markdown(f"""
         <div style="font-size:20px; font-weight:bold;">AST / FGA (%)</div>
         <div style="font-size:28px; margin-top:4px;">{ast_fga_ratio * 100:.0f}%</div>
-        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_fga_context} archetype ({ast_fga_percentile} pct)</div>
+        <div style="font-size:14px; color:gray; margin-top:2px;">{ast_fga_context} archetype ({ast_fga_percentile} Pctl)</div>
     """, unsafe_allow_html=True)
 
 # --------------------------
