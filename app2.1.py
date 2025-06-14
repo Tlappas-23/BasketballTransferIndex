@@ -268,10 +268,10 @@ else:
 # Minute box
 # --------------------------
 # Minutes input (default = 40)
-minutes = st.number_input("Adjust projection Minutes per game:", min_value=1, max_value=40, value=40, step=1)
+#minutes = st.number_input("Adjust projection Minutes per game:", min_value=1, max_value=40, value=40, step=1)
 scale_factor = 1
-minutes / 40
-#minutes = 40
+#minutes / 40
+minutes = 40
 
 # --------------------------
 # WRITE TO ACTIVE SHEET
