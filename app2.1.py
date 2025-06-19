@@ -324,8 +324,8 @@ projected_stat_layout = [
     ["BLK", "TOV", "2P%", "3P%"]
 ]
 
-volume_stat_cap_multiplier = 1.40
-percent_stat_cap_multiplier = 1.10
+volume_stat_cap_multiplier = 1.6
+percent_stat_cap_multiplier = 1.15
 lower_is_better = {"TOV"}
 
 target_conf = df[df["School"] == selected_school]["Conference"].values
