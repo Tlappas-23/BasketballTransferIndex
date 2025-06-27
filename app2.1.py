@@ -133,6 +133,13 @@ except Exception as e:
     st.stop()
 
 # --------------------------
+# Stat Basis Dropdown
+# --------------------------
+stat_basis = st.selectbox("Stat Basis", options=["Per 32", "Per 36", "Per 40"], index=2)
+basis_minutes = int(stat_basis.split(" ")[1])
+scale_factor = basis_minutes / 40 
+
+# --------------------------
 # UI: TARGET SCHOOL SELECTION
 # --------------------------
 st.markdown("### Select Target School:")
@@ -265,15 +272,6 @@ else:
     st.stop()
 
 # --------------------------
-# Minute box
-# --------------------------
-# Minutes input (default = 40)
-#minutes = st.number_input("Adjust projection Minutes per game:", min_value=1, max_value=40, value=40, step=1)
-scale_factor = 1
-#minutes / 40
-minutes = 40
-
-# --------------------------
 # WRITE TO ACTIVE SHEET
 # --------------------------
 try:
@@ -317,7 +315,7 @@ except Exception as e:
 # --------------------------
 # PROJECTED SEASON PERFORMANCE
 # --------------------------
-st.markdown("### Forecasted Per40 Statistics at Target School")
+st.markdown(f"### Forecasted Per{basis_minutes} Statistics at Target School")
 
 projected_stat_layout = [
     ["PPG", "FTA", "REB", "AST"],
@@ -365,7 +363,7 @@ for stat_row in projected_stat_layout:
 
             with row_cols[i]:
                 st.markdown(f"""
-                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per{basis_minutes})</div>
                     <div style="font-size:28px; margin-top:4px;">{projected_val_capped * 100:.0f}%</div>
                     <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
                 """, unsafe_allow_html=True)
@@ -396,7 +394,7 @@ for stat_row in projected_stat_layout:
 # --------------------------
 # CURRENT SEASON PERFORMANCE
 # --------------------------
-st.markdown("### Current Per40 Statistics")
+st.markdown(f"### Current Per{basis_minutes} Statistics")
 
 current_stat_layout = [
     ["PPG", "FTA", "REB", "AST"],
@@ -433,14 +431,14 @@ for stat_row in current_stat_layout:
         with row_cols[i]:
             if stat in ["2P%", "3P%"]:
                 st.markdown(f"""
-                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per{basis_minutes})</div>
                     <div style="font-size:28px; margin-top:4px;">{current_val * 100:.0f}%</div>
                     <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
                 """, unsafe_allow_html=True)
             else:
                 adjusted_val = current_val * scale_factor
                 st.markdown(f"""
-                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per40)</div>
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per{basis_minutes})</div>
                     <div style="font-size:28px; margin-top:4px;">{adjusted_val:.1f}</div>
                     <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
                 """, unsafe_allow_html=True)
@@ -448,16 +446,16 @@ for stat_row in current_stat_layout:
 # --------------------------
 # Player Profile 
 # --------------------------
-st.markdown("### Current Per40 Player Profile")
+st.markdown(f"### Current Per{basis_minutes} Player Profile")
 
 # Base stats
 gp = safe_float(player.get("GP", 0))
 mpg = safe_float(player.get("MPG", 0))
-two_fga = safe_float(player.get("2PA_Per40", 0))
-three_pa = safe_float(player.get("3PA_Per40", 0))
-fta = safe_float(player.get("FTA_Per40", 0))
-ast = safe_float(player.get("APG_Per40", 0))
-tov = safe_float(player.get("TOV_Per40", 0))
+two_fga = safe_float(player.get("2PA_Per40", 0)) * scale_factor
+three_pa = safe_float(player.get("3PA_Per40", 0)) * scale_factor
+fta = safe_float(player.get("FTA_Per40", 0)) * scale_factor
+ast = safe_float(player.get("APG_Per40", 0)) * scale_factor
+tov = safe_float(player.get("TOV_Per40", 0)) * scale_factor
 
 # Conference filter
 player_conf = player.get("Conference", None)
@@ -527,14 +525,14 @@ with row1[1]:
 
 with row1[2]:
     st.markdown(f"""
-        <div style="font-size:20px; font-weight:bold;">FGA (Per40)</div>
+        <div style="font-size:20px; font-weight:bold;">FGA (Per{basis_minutes})</div>
         <div style="font-size:28px; margin-top:4px;">{total_fga:.1f}</div>
         <div style="font-size:14px; color:gray; margin-top:2px;">{fga_label} shooter in {player_conf} (Pctl: {fga_percentile})</div>
     """, unsafe_allow_html=True)
 
 with row1[3]:
     st.markdown(f"""
-        <div style="font-size:20px; font-weight:bold;">3PTA (Per40)</div>
+        <div style="font-size:20px; font-weight:bold;">3PTA (Per{basis_minutes})</div>
         <div style="font-size:28px; margin-top:4px;">{three_pa:.1f}</div>
         <div style="font-size:14px; color:gray; margin-top:2px;">{three_pt_context} 3PT shooter in {player_conf} (Pctl: {three_pt_percentile})</div>
     """, unsafe_allow_html=True)
@@ -607,17 +605,23 @@ with col4:
 # --------------------------
 # BAR CHART COMPARISON
 # --------------------------
-st.markdown("### Per40 Stats: Current vs Forecasted")
+st.markdown(f"### Per{basis_minutes} Stats: Current vs Forecasted")
 
 # Define volume stats to compare
 volume_stats = ["PPG", "FTA", "REB", "AST", "BLK", "TOV"]
 
 # Safely extract current values
-current_vals = [safe_float(player.get(stat_column_map.get(stat, ""), 0)) for stat in volume_stats]
+current_vals = [
+    safe_float(player.get(stat_column_map.get(stat, ""), 0)) * scale_factor
+    for stat in volume_stats
+]
 
 # Get multipliers and project values
 adjustments = [safe_float(total_row.get(dict(projected_keys).get(stat, ""), 1)) for stat in volume_stats]
-projected_vals = [adjusted_positive_projection(cur, mult) for cur, mult in zip(current_vals, adjustments)]
+projected_vals = [
+    adjusted_positive_projection(cur / scale_factor, mult) * scale_factor
+    for cur, mult in zip(current_vals, adjustments)
+]
 
 # Labels
 labels = [label_map.get(stat, stat) for stat in volume_stats]
@@ -635,7 +639,7 @@ bars_projected = ax.bar(x + bar_width/2, projected_vals, bar_width,
 # Axes and Title
 ax.set_xticks(x)
 ax.set_xticklabels(labels, fontsize=10)
-ax.set_ylabel("Per 40 Minutes", fontsize=11)
+ax.set_ylabel(f"Per {basis_minutes} Minutes", fontsize=11)
 ax.set_title(f"{selected_player} – Current vs Forecasted Stats", fontsize=13, fontweight='bold')
 ax.legend()
 ax.grid(axis='y', linestyle='--', alpha=0.6)
