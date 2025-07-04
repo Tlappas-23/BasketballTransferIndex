@@ -190,34 +190,38 @@ df_school = df_conf[apply_filter(df_conf['School'], school_filter)]
 position_options = sorted(df_school['Pos'].dropna().unique())
 position_filter = st.sidebar.multiselect("Position", position_options)
 
-# Step 6: Points Per 40 filter
+# Step 6: Points Per {basis_minutes} filter
 ppg_column = "PPG_Per40"
 df_school[ppg_column] = pd.to_numeric(df_school[ppg_column], errors='coerce')
 min_ppg = float(df_school[ppg_column].min(skipna=True))
 max_ppg = float(df_school[ppg_column].max(skipna=True))
-ppg_threshold = st.sidebar.slider("Points Per40 (Minimum)", min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
+ppg_threshold = st.sidebar.slider(f"Points Per {basis_minutes} (Minimum)",
+    min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
 
-# Step 7: 3PA Per 40 filter
+# Step 7: 3PA Per {basis_minutes} filter
 threepa_column = "3PA_Per40"
 df_school[threepa_column] = pd.to_numeric(df_school[threepa_column], errors='coerce')
 min_3pa = float(df_school[threepa_column].min(skipna=True))
 max_3pa = float(df_school[threepa_column].max(skipna=True))
-threepa_threshold = st.sidebar.slider("3PA Per40 (Minimum)", min_value=0.0, max_value=max_3pa, value=min_3pa, step=0.5)
+threepa_threshold = st.sidebar.slider(f"3PA Per {basis_minutes} (Minimum)",
+    min_value=0.0, max_value=max_3pa, value=min_3pa, step=0.5)
 
-# Step 8: Rebounds Per 40 filter
+# Step 8: Rebounds Per {basis_minutes} filter
 reb_column = "RPG_Per40"
 df_school[reb_column] = pd.to_numeric(df_school[reb_column], errors='coerce')
 min_reb = float(df_school[reb_column].min(skipna=True))
 max_reb = float(df_school[reb_column].max(skipna=True))
-reb_threshold = st.sidebar.slider("Rebounds Per40 (Minimum)", min_value=0.0, max_value=max_reb, value=min_reb, step=0.5)
+reb_threshold = st.sidebar.slider(f"Rebounds Per {basis_minutes} (Minimum)",
+    min_value=0.0, max_value=max_reb, value=min_reb, step=0.5)
 
-# Step 9: 3P% Per 40 filter
-threep_column = "3P%_Per40"  # adjust if different
+# Step 9: 3P%
+threep_column = "3P%_Per40"
 df_school[threep_column] = pd.to_numeric(df_school[threep_column], errors='coerce')
-min_3p = float(df_school[threep_column].min(skipna=True)) * 100  # convert to %
+min_3p = float(df_school[threep_column].min(skipna=True)) * 100
 max_3p = float(df_school[threep_column].max(skipna=True)) * 100
 threep_threshold = st.sidebar.slider(
-    "Min 3P% Per 40", min_value=0.0, max_value=max_3p, value=min_3p, step=1.0
+    f"Min 3P% (Per {basis_minutes})",
+    min_value=0.0, max_value=max_3p, value=min_3p, step=1.0
 )
 
 # Step 10: Minutes per Game filter
