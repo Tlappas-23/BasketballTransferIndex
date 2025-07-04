@@ -385,11 +385,11 @@ for stat_row in projected_stat_layout:
                 caption = ""
 
             with row_cols[i]:
-            st.markdown(f"""
-                <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per{basis_minutes})</div>
-                <div style="font-size:28px; margin-top:4px;">{projected_val_capped:.1f}</div>
-                <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
-            """, unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div style="font-size:20px; font-weight:bold;">{label_map[stat]} (Per{basis_minutes})</div>
+                    <div style="font-size:28px; margin-top:4px;">{projected_val_capped:.1f}</div>
+                    <div style="font-size:14px; color:gray; margin-top:2px;">{caption}</div>
+                """, unsafe_allow_html=True)
 
 # --------------------------
 # CURRENT SEASON PERFORMANCE
