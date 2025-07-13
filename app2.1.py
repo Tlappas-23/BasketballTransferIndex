@@ -197,8 +197,8 @@ ppg_column = "PPG_Per40"
 df_school[ppg_column] = pd.to_numeric(df_school[ppg_column], errors='coerce')
 min_ppg = float(df_school[ppg_column].min(skipna=True))
 max_ppg = float(df_school[ppg_column].max(skipna=True))
-#ppg_threshold = st.sidebar.slider(f"Points Per {basis_minutes} (Minimum)",
-min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
+ppg_threshold = st.sidebar.slider(f"Points Per {basis_minutes} (Minimum)",
+    min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
 
 # Step 7: 3PA Per {basis_minutes} filter
 threepa_column = "3PA_Per40"
