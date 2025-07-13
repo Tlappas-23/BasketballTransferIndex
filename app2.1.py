@@ -257,12 +257,12 @@ reb_threshold = reb_display_threshold / scale_factor
 threep_column = "3P%_Per40"
 df_school[threep_column] = pd.to_numeric(df_school[threep_column], errors='coerce')
 
-# Convert for display as percentages
+# Convert to percentage scale for slider
 min_3p = float(df_school[threep_column].min(skipna=True)) * 100
 max_3p = float(df_school[threep_column].max(skipna=True)) * 100
 
 threep_threshold = st.sidebar.slider(
-    f"Min 3P% (Per {basis_minutes})",  # UI label only
+    "Minimum 3P%",  # <-- removed "(Per {basis_minutes})"
     min_value=0.0,
     max_value=max_3p,
     value=min_3p,
