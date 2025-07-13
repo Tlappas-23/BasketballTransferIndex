@@ -192,13 +192,25 @@ df_school = df_conf[apply_filter(df_conf['School'], school_filter)]
 position_options = sorted(df_school['Pos'].dropna().unique())
 position_filter = st.sidebar.multiselect("Position", position_options)
 
-# Step 6: Points Per {basis_minutes} filter
+# Step 6: Points
 ppg_column = "PPG_Per40"
 df_school[ppg_column] = pd.to_numeric(df_school[ppg_column], errors='coerce')
-min_ppg = float(df_school[ppg_column].min(skipna=True))
-max_ppg = float(df_school[ppg_column].max(skipna=True))
-ppg_threshold = st.sidebar.slider(f"Points Per {basis_minutes} (Minimum)",
-    min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
+
+# Scale Per40 values to the selected stat basis for the slider display
+min_ppg_display = float(df_school[ppg_column].min(skipna=True) * scale_factor)
+max_ppg_display = float(df_school[ppg_column].max(skipna=True) * scale_factor)
+
+# Sidebar slider: shown in Per{basis_minutes}
+ppg_display_threshold = st.sidebar.slider(
+    f"Points Per {basis_minutes} (Minimum)",
+    min_value=0.0,
+    max_value=max_ppg_display,
+    value=min_ppg_display,
+    step=0.5
+)
+
+# Convert user input from Per{basis_minutes} back to Per40 scale for filtering
+ppg_threshold = ppg_display_threshold / scale_factor
 
 # Step 7: 3PA Per {basis_minutes} filter
 threepa_column = "3PA_Per40"
