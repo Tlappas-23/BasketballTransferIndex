@@ -193,12 +193,23 @@ position_options = sorted(df_school['Pos'].dropna().unique())
 position_filter = st.sidebar.multiselect("Position", position_options)
 
 # Step 6: Points Per {basis_minutes} filter
-ppg_column = "PPG_Per40"
-df_school[ppg_column] = pd.to_numeric(df_school[ppg_column], errors='coerce')
+# Original Per40 column
+base_ppg_column = "PPG_Per40"
+# Dynamically scaled column name
+ppg_column = f"PPG_Per{basis_minutes}"
+# Calculate scaled version if it doesn't already exist
+if ppg_column not in df_school.columns:
+    df_school[ppg_column] = pd.to_numeric(df_school[base_ppg_column], errors='coerce') * (basis_minutes / 40)
+# Use the scaled column for slider filtering
 min_ppg = float(df_school[ppg_column].min(skipna=True))
 max_ppg = float(df_school[ppg_column].max(skipna=True))
-ppg_threshold = st.sidebar.slider(f"Points Per {basis_minutes} (Minimum)",
-    min_value=0.0, max_value=max_ppg, value=min_ppg, step=0.5)
+ppg_threshold = st.sidebar.slider(
+    f"Points Per {basis_minutes} (Minimum)",
+    min_value=0.0,
+    max_value=max_ppg,
+    value=min_ppg,
+    step=0.5
+)
 
 # Step 7: 3PA Per {basis_minutes} filter
 threepa_column = "3PA_Per40"
