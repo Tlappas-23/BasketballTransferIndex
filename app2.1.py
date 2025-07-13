@@ -135,9 +135,11 @@ except Exception as e:
 # --------------------------
 # Stat Basis Dropdown
 # --------------------------
-stat_basis = st.selectbox("### Stat Basis", options=["Per 32", "Per 36", "Per 40"], index=2)
+st.markdown("### Select Stat Basis:")
+stat_basis = st.selectbox("", options=["Per 32", "Per 36", "Per 40"], index=2)
+
 basis_minutes = int(stat_basis.split(" ")[1])
-scale_factor = basis_minutes / 40 
+scale_factor = basis_minutes / 40
 
 # --------------------------
 # UI: TARGET SCHOOL SELECTION
