@@ -7,31 +7,6 @@ import numpy as np
 import os
 import random
 
-# Password protection before displaying the app
-def show_password_gate():
-    st.markdown("<h2 style='text-align: center;'>Basketball Transfer Index</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center;'>Enter Password to Proceed</h4>", unsafe_allow_html=True)
-    
-    # Center the password input and button
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        password = st.text_input("Password", type="password", placeholder="Password")
-        proceed = st.button("Proceed to Basketball Transfer Index")
-        
-        # Define your password here (or load it securely from secrets)
-        correct_password = st.secrets.get("app_password", "transfer2025")  # fallback default
-
-        if proceed:
-            if password == correct_password:
-                st.session_state["authenticated"] = True
-            else:
-                st.error("Incorrect password. Please try again.")
-
-# Check session state for password
-if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    show_password_gate()
-    st.stop()
-
 # --------------------------
 # CONFIGURATION & STYLING
 # --------------------------
